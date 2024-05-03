@@ -76,7 +76,9 @@ end
 
 unless $d.html.header["status"] == "REDIRECT"
 
-	$d << "<h2>"+ _("Create new poll") + "</h2>"
+	$d << "<h2>Für neue Umfragen besuchen Sie bitte diese Adresse:</h2>"
+	$d << "<h2><a href=\"https://dudle.docker.sorben.com\">https://dudle.docker.sorben.com</a></h2>"
+	$d << "<h2>Existierende Umfragen können weiterhin benutzt werden.</h2>"
 
 	titlestr = _("Title")
 	typestr = _("Type")
@@ -115,7 +117,7 @@ unless $d.html.header["status"] == "REDIRECT"
 <div class = 'error' aria-atomic="true" aria-live='assertive'>
 #{createnotice}
 </div>
-<input type='submit' value='#{createstr}' /></td>
+<input type='submit' value='#{createstr}' disabled /></td>
 </form>
 CREATE
 
