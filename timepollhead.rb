@@ -151,13 +151,15 @@ class TimePollHead
 
 		def sortsymb(scols,col)
 			return <<SORTSYMBOL
-<span class='sortsymb'> #{scols.include?(col) ? SORT : NOSORT}</span>
+            <span class="sortsymb visually-hidden headerSymbol">#{scols.include?(col) ? _("Sort") : _("No Sort")}</span>
+            <span class='sortsymb' aria-hidden='true'> #{scols.include?(col) ? SORT : NOSORT}</span>
 SORTSYMBOL
 		end
 
+
 		ret += "<th class='invisible'></th></tr><tr><th colspan='2'><a href='?sort=name'>" + _("Name") + " #{sortsymb(scols,"name")}</a></th>"
 		@data.sort.each{|date|
-			ret += "<th><a title=\"#{CGI.escapeHTML(date.to_s)}\" href=\"?sort=#{CGI.escape(date.to_s)}\">#{CGI.escapeHTML(date.time_to_s)} #{sortsymb(scols,date.to_s)}</a></th>\n"
+			ret += "<th class='polloptions'><a title=\"#{CGI.escapeHTML(date.to_s)}\" href=\"?sort=#{CGI.escape(date.to_s)}\">#{CGI.escapeHTML(date.time_to_s)} #{sortsymb(scols,date.to_s)}</a></th>\n"
 		}
 		ret += "<th><a href='?'>" + _("Last edit") + " #{sortsymb(scols,"timestamp")}</a></th>\n</tr>\n"
 		ret
@@ -178,7 +180,7 @@ SORTSYMBOL
 		<th colspan='2' style='padding:0px'>
 			<form method='post' action=''>
 				<div>
-					<input class='navigation' type='submit' title='#{navimonthDescription}' value='#{val}' />
+					<input class='navigation' type='submit' title='#{navimonthDescription}' aria-label='#{navimonthDescription}' value='#{val}' />
 					<input type='hidden' name='add_remove_column_month' value='#{navimonth.strftime("%Y-%m")}' />
 					<input type='hidden' name='firsttime' value='#{@firsttime.to_s.rjust(2,"0")}:00' />
 					<input type='hidden' name='lasttime' value='#{@lasttime.to_s.rjust(2,"0")}:00' />
@@ -193,11 +195,13 @@ END
 		when EARLIER
 			return "" if @firsttime == 0
 			str = EARLIER + " " + _("Earlier")
+			strAria = _("Add previous two hours")
 			firsttime = [@firsttime-2,0].max
 			lasttime = @lasttime
 		when LATER
 			return "" if @lasttime == 23
 			str = LATER + " " + _("Later")
+			strAria = _("Add following two hours")
 			firsttime = @firsttime
 			lasttime = [@lasttime+2,23].min
 		else
@@ -208,7 +212,7 @@ END
 	<td class='navigation' colspan='2'>
 		<form method='post' action=''>
 			<div>
-				<input class='navigation' type='submit' value='#{str}' />
+				<input class='navigation' type='submit' title='#{strAria}' aria-label='#{strAria}' value='#{str}' />
 				<input type='hidden' name='firsttime' value='#{firsttime.to_s.rjust(2,"0")}:00' />
 				<input type='hidden' name='lasttime' value='#{lasttime.to_s.rjust(2,"0")}:00' />
 				<input type='hidden' name='add_remove_column_month' value='#{@startdate.strftime("%Y-%m")}' />
@@ -246,16 +250,21 @@ END
 		@firsttime = realtimes.min.strftime("%H").to_i
 		@lasttime  = realtimes.max.strftime("%H").to_i
 
-		def add_remove_button(klasse, buttonlabel, action, columnstring, revision, pretext = "", arialabel = columnstring)
+		def add_remove_button(klasse, buttonlabel, action, columnstring, revision, pretext = "", arialabel = columnstring, properdate)
 			if klasse == "chosen" || klasse == "delete"
-				titlestr = _("Delete the column %{DATE}") % {:DATE => CGI.escapeHTML(arialabel)}
+				titlestr = _("Delete the column %{DATE}") % {:DATE => CGI.escapeHTML(properdate)}
+				if klasse == "delete"
+					klasse += " headerSymbol"
+				end	
+			elsif klasse == "disabled"
+				titlestr = _("Add the already past column %{DATE}") % {:DATE => CGI.escapeHTML(properdate)}
 			else
-				titlestr = _("Add the column %{DATE}") % {:DATE => CGI.escapeHTML(arialabel)}
+				titlestr = _("Add the column %{DATE}") % {:DATE => CGI.escapeHTML(properdate)}	
 			end
 			return <<FORM
 <form method='post' action=''>
 	<div>
-		#{pretext}<input title='#{titlestr}' class='#{klasse}' type='submit' value="#{buttonlabel}" />
+		#{pretext}<input date="#{CGI.escapeHTML(properdate)}" title='#{titlestr}' aria-label='#{titlestr}' class='#{klasse}' type='submit' value="#{buttonlabel}" />
 		<input type='hidden' name='#{action}' value="#{CGI.escapeHTML(columnstring)}" />
 		<input type='hidden' name='firsttime' value="#{@firsttime.to_s.rjust(2,"0")}:00" />
 		<input type='hidden' name='lasttime' value="#{@lasttime.to_s.rjust(2,"0")}:00" />
@@ -285,7 +294,7 @@ END
 			# 2010-03-01 was a Monday, so we can use this month for a dirty hack
 			ret += "<th class='weekday'>#{Date.parse("2010-03-0#{i+1}").strftime("%a")}</th>"
 		}
-		ret += "</tr><tr>\n"
+		ret += "</tr></thead><tr>\n"
 
 		((@startdate.wday+7-1)%7).times{
 			ret += "<td class='invisible'></td>"
@@ -299,13 +308,16 @@ END
 				klasse = "chosen"
 				varname = "deletecolumn"
 			end
-			ret += "<td class='calendarday'>#{add_remove_button(klasse, d.day, varname, d.strftime('%Y-%m-%d'),revision)}</td>"
+			ret += "<td class='calendarday'>#{add_remove_button(klasse, d.day, varname, d.strftime('%Y-%m-%d'),revision, d.strftime('%d-%m-%Y'))}</td>"
 			d = d.next
 			break if d.month != @startdate.month
 			ret += "</tr><tr>\n" if d.wday == 1
 		end
+		added = _("added")
+		removed = _("removed")
 		ret += <<END
 </tr></table>
+<div id="liveCalenderDayInfo" class="shorttextcolumn visually-hidden" aria-live="assertive"></div>
 </td>
 END
 
@@ -322,11 +334,12 @@ END
 #{optstr}<br/>
 #{hintstr}
 </div>
-<table border='1' class='calendarday'>
+<table border='1' class='calendarday calendartime timecolumns'>
+<thead>
 <tr>
 END
 
-		ret += "<th class='invisible' colspan='2'></th>"
+		ret += "<td class='invisible' colspan='2'></td>"
 		head_count("%Y-%m",true).each{|title,count|
 			year,month = title.split("-").collect{|e| e.to_i}
 			ret += "<th colspan='#{count}'>#{Date.parse("#{year}-#{month}-01").strftime("%b %Y")}</th>\n"
@@ -336,10 +349,10 @@ END
 
 		head_count("%Y-%m-%d",true).each{|title,count|
 			coltime = Date.parse(title)
-			ret += "<th>" + add_remove_button("delete",DELETE, "deletecolumn", coltime.strftime("%Y-%m-%d"), revision, "#{coltime.strftime('%a, %d')}&nbsp;") + "</th>"
+			ret += "<th>" + add_remove_button("delete",DELETE, "deletecolumn", coltime.strftime("%Y-%m-%d"), revision, "#{coltime.strftime('%a, %d')}&nbsp;", coltime.strftime('%d-%m-%Y')) + "</th>"
 		}
 
-		ret += "</tr>"
+		ret += "</thead></tr>"
 
 
 		days = @data.sort.collect{|date| date.date }.uniq
@@ -388,7 +401,7 @@ END
 				ret += "<input type='hidden' name='deletecolumn' value=\"#{CGI.escapeHTML(time)}\" />"
 				titlestr = _("Deselect the whole row")
 			end
-			ret += "<input type='submit' class='toggle' title='#{titlestr}' value='#{MONTHFORWARD}' />"
+			ret += "<input type='submit' class='toggle' title='#{titlestr}' aria-label='#{titlestr}' value='#{MONTHFORWARD}' />"
 			ret += <<END
 					</div>
 				</form>
@@ -432,8 +445,9 @@ END
 			end
 			addstr = _("Add")
 			hintstr = _("e.&thinsp;g., 09:30, morning, afternoon")
+			timestr = _("Write a specific time for ")
 			ret += <<END
-				<input type="text" name='columntime' title='#{hintstr}' style="max-width: 10ex" /><br />
+				<input type="text" name='columntime' title='#{timestr}#{d.strftime("%d-%m-%Y")}' aria-label='#{timestr}#{d.strftime("%d-%m-%Y")}' style="max-width: 10ex" /><br />
 				<input type="submit" value="#{addstr}" style="width: 100%" />
 			</div>
 		</form>

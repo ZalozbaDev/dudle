@@ -94,9 +94,13 @@ class Poll
 			ret += "<td><span class='edituser'>"
 			ret += "<a title=\""
 			ret += _("Edit user %{user}...") % {:user => CGI.escapeHTML(participant)}
+			ret += "\" aria-label=\""
+			ret += _("Edit user %{user}...") % {:user => CGI.escapeHTML(participant)}
 			ret += "\" href=\"?edituser=#{CGI.escape(participant)}\">"
 			ret += EDIT
 			ret += "</a> | <a title=\""
+			ret += _("Delete user %{user}...") % {:user => CGI.escapeHTML(participant)}
+			ret += "\" aria-label=\""
 			ret += _("Delete user %{user}...") % {:user => CGI.escapeHTML(participant)}
 			ret += "\" href=\"?deleteuser&amp;edituser=#{CGI.escape(participant)}\">"
 			ret += "#{DELETE}</a>"
@@ -127,18 +131,26 @@ class Poll
 					when nil
 						value = UNKNOWN
 						klasse = "undecided"
+						str = _("Unknown")
 					when /yes/ # allow anything containing yes (backward compatibility)
 						value = YES
 						klasse = YESVAL
+						str = _("%{user} selected Yes")  % {:user => CGI.escapeHTML(participant)}
 					when /no/
 						value = NO
 						klasse = NOVAL
+						str = _("%{user} selected No")  % {:user => CGI.escapeHTML(participant)}
 					when /maybe/
 						value = MAYBE
 						klasse = MAYBEVAL
+						str = _("%{user} selected Maybe")  % {:user => CGI.escapeHTML(participant)}
 					end
-					ret += "<td class=\"vote #{klasse}\" title=\"#{CGI.escapeHTML(participant)}: #{CGI.escapeHTML(column.to_s)}\">#{value}</td>\n"
-				}
+					if column.to_s.match(/\d\d\d\d\-\d\d\-\d\d/)
+						ret += "<td class=\"vote #{klasse}\" title=\"#{CGI.escapeHTML(participant)}: #{CGI.escapeHTML(column.to_s)}\"><span class='visually-hidden'>#{str}</span><span aria-hidden='true'>#{value}</span></td>\n"
+					else
+						ret += "<td class=\"vote #{klasse}\" title=\"#{CGI.escapeHTML(participant)}: #{CGI.escapeHTML(column.to_s)}\"><span class='visually-hidden'>#{str}</span><span aria-hidden='true'>#{value}</span></td>\n"
+					end
+					}
 				ret += "<td class='date'>#{poll['timestamp'].strftime('%c')}</td>"
 				ret += "</tr>\n"
 			end
@@ -172,8 +184,11 @@ class Poll
 			if undecided > 0
 				percent += "-#{(100.0*(undecided+yes)/@data.size).round} %"
 			end
+			
+			ofstr = _("out of")
+			votedstr = _("participants voted yes")
 
-			ret += "<td id=\"sum_#{column.to_htmlID}\" class=\"sum match_#{(percent_f/10).round*10}\" title=\"#{percent}\">#{yes}</td>\n"
+			ret += "<td id=\"sum_#{column.to_htmlID}\" class=\"sum match_#{(percent_f/10).round*10}\" title=\"#{yes} #{ofstr} #{@data.size} #{votedstr}\"><span aria-hidden=\"true\">#{yes}</span><span class=\"visually-hidden\">#{yes} #{ofstr} #{@data.size} #{votedstr}.</span></td>\n"		
 		}
 
 		ret += "<td class='invisible'></td></tr>"
@@ -187,9 +202,9 @@ class Poll
 		namestr = _("Name")
 		ret = <<HEAD
 <table id='participanttable'>
-<tr>
-	<th colspan='2'>#{namestr}</th>
-</tr>
+<thead>
+	<tr><th colspan='2'>#{namestr}</th></tr>
+</thead>
 HEAD
 		@data.keys.sort.each{|participant|
 			has_voted = false
@@ -225,9 +240,9 @@ HEAD
 		type='text'
 		name='add_participant'
 		id='add_participant_input'
-		aria-label='#{CGI.escapeHTML(_('Name'))}'
-		value="#{CGI.escapeHTML(edituser.to_s)}"
-		label='#{CGI.escapeHTML(_('Add a participant'))}'/>
+		aria-label='#{CGI.escapeHTML(_('Enter your name'))}'
+		title='#{CGI.escapeHTML(_('Enter your name'))}'
+		value="#{CGI.escapeHTML(edituser.to_s)}"/>
 </td>
 END
 	end
@@ -282,6 +297,7 @@ END
 		@head.columns.each{|column|
 			ret += "<td class='checkboxes'><table class='checkboxes'>"
 			[[YES, YESVAL, _("Yes")],[NO, NOVAL, _("No")],[MAYBE, MAYBEVAL, _("Maybe")]].each{|valhuman, valbinary, valtext|
+			if column.to_s.match(/\d\d\d\d\-\d\d\-\d\d/)
 				ret += <<TR
 				<tr class='input-#{valbinary}'>
 					<td class='input-radio'>
@@ -290,13 +306,26 @@ END
 							id=\"add_participant_checked_#{column.to_htmlID}_#{valbinary}\"
 							name=\"add_participant_checked_#{CGI.escapeHTML(column.to_s)}\"
 							aria-label=\"#{CGI.escapeHTML(column.to_s)}: #{valtext}\"
-							title=\"#{CGI.escapeHTML(column.to_s)}: #{valhuman}\" #{checked[column] == valbinary ? "checked='checked'":""}/>
-					</td>
-					<td class='input-label'>
-						<label for=\"add_participant_checked_#{column.to_htmlID}_#{valbinary}\">#{valhuman}</label>
+                            title=\"#{CGI.escapeHTML(column.to_s)}: #{valhuman}\" #{checked[column] == valbinary ? "checked='checked'":""}/>
+							<label for=\"add_participant_checked_#{column.to_htmlID}_#{valbinary}\"><span class=\"visually-hidden\">#{valtext}</span><span aria-hidden=\"true\">#{valhuman}</span></label>
 					</td>
 			</tr>
 TR
+			else	
+				ret += <<TR
+				<tr class='input-#{valbinary}'>
+					<td class='input-radio'>
+						<input type='radio'
+							value='#{valbinary}'
+							id=\"add_participant_checked_#{column.to_htmlID}_#{valbinary}\"
+							name=\"add_participant_checked_#{CGI.escapeHTML(column.to_s)}\"
+							aria-label=\"#{CGI.escapeHTML(column.to_s)}: #{valtext}\"
+                            title=\"#{CGI.escapeHTML(column.to_s)}: #{valhuman}\" #{checked[column] == valbinary ? "checked='checked'":""}/>
+							<label for=\"add_participant_checked_#{column.to_htmlID}_#{valbinary}\"><span class=\"visually-hidden\">#{valtext}</span><span aria-hidden=\"true\">#{valhuman}</span></label>
+					</td>
+			</tr>
+TR
+			end
 			}
 			ret += "</table></td>"
 		}
@@ -311,16 +340,16 @@ TR
 		ret = "<div id='comments'>"
 		ret	+= "<h2>" + _("Comments") if !@comment.empty? || editable
 			if $cgi.include?("comments_reverse")
-				ret	+= " <a class='comment_sort' href='?' title='"
-				ret += _("Sort oldest comment first") + "'>#{REVERSESORT}</a>"
+				ret += "<a class='comment_sort' href='?'><span class='visually-hidden'>"+" "+ _("Sort oldest comment first")
+				ret += "</span><span aria-hidden='true'>#{REVERSESORT}</a>"
 			else
-				ret	+= " <a class='comment_sort' href='?comments_reverse' title='"
-				ret += _("Sort newest comment first") + "'>#{SORT}</a>"
+				ret += "<a class='comment_sort' href='?comments_reverse'><span class='visually-hidden'>"+" "+_("Sort newest comment first")
+				ret	+= "</span><span aria-hidden='true'>#{SORT}</span></a>"
 			end
 
 		if @comment.size > 5
-			ret += " <a class='top_bottom_ref' href='#comment#{@comment.size - 1}' title='"
-			ret += _("Go to last comment") + "'>#{GODOWN}</a>"
+			ret += "<a class='top_bottom_ref' href='#comment#{@comment.size - 1}'><span class='visually-hidden'>"+" "+_("Go to last comment")
+			ret += "</span><span aria-hidden='true'>#{GODOWN}</span></a>"
 		end
 
 		ret	+= "</h2>" if !@comment.empty? || editable
@@ -347,8 +376,8 @@ TR
 		end
 
 		if @comment.size > 5
-			ret += "<a class='top_bottom_ref' href='#top' title='"
-			ret += _("Go up") + "'>#{GOUP}</a>"
+			ret += "<a class='top_bottom_ref'  href='#top' title='"+_("Go up")+"'><span class='visually-hidden'>"+_("Go up")
+			ret += + "</span><span aria-hidden='true'>#{GOUP}</span></a>"
 		end
 
 
@@ -356,23 +385,26 @@ TR
 			# ADD COMMENT
 			saysstr = _("says")
 			submitstr = _("Submit comment")
+			commentnamestr = _("Your name")
 			ret += <<ADDCOMMENT
 <form method='post' action='.' accept-charset='utf-8' id='newcomment'>
 	<div class='comment' id='add_comment'>
+	<label for='commentname'>#{commentnamestr}:</label>
 		<input
 			value="#{CGI.escapeHTML($cgi.cookies["username"][0] || "Anonymous")}"
 			type='text'
+			id='commentname'
 			name='commentname'
 			size='9'
 			aria-label='#{CGI.escapeHTML(_('Enter your name'))}'
-			label='#{CGI.escapeHTML(_('Enter your name'))}'/> #{saysstr}&nbsp;
+			title='#{CGI.escapeHTML(_('Enter your name'))}'/> #{saysstr}&nbsp;
 		<br />
 		<textarea
 			cols='50'
 			rows='7'
 			name='comment'
 			aria-label='#{CGI.escapeHTML(_('Enter a comment'))}'
-			label='#{CGI.escapeHTML(_('Enter a comment'))}'></textarea>
+			></textarea>
 		<br /><input type='submit' value='#{submitstr}' />
 	</div>
 </form>
@@ -388,8 +420,8 @@ ADDCOMMENT
 		ret = <<FORM
 <form method='get' action=''>
 	<div>
-		#{showhiststr}
-		<select name='history'>
+	<label class='label' for='history'>#{showhiststr}</label>
+		<select name='history' id='history'>
 FORM
 		[["",_("All")],
 		 ["participants",_("Participant related")],

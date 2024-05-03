@@ -81,7 +81,7 @@ if $cgi.include?("confirmnumber")
 		exit
 	else
 		hint = %{
-<table style='background:lightgray'>
+<table id='warningtable' style='background:rgb(225,225,225)'>
 	<tr>
 		<td style='text-align:right'>
 }
@@ -106,18 +106,23 @@ else
 end
 
 $d.html << "<h2>" + _("Delete this poll") + "</h2>"
-$d.html << _("You want to delete the poll named") + " <b>#{CGI.escapeHTML($d.table.name)}</b>.<br />"
+$d.html << "<p>" + _("You want to delete the poll named") + " <b>#{CGI.escapeHTML($d.table.name)}</b>.<br />"
 $d.html << _("This is an irreversible action!") + "<br />"
-$d.html << _("If you are sure that you want to permanently remove this poll, please type “%{question}” into the form.") % {:question => QUESTIONS[confirm]}
+$d.html << _("If you are sure that you want to permanently remove this poll, please type the following sentence into the form: %{question}") % {:question => QUESTIONS[confirm]}
+$d.html << "</p>"
 deletestr = _("Delete")
+deleteform = _("Delete form")
 $d.html << %{
 	#{hint}
 	<form method='post' action='' accept-charset='utf-8'>
-		<div>
+		<table  class='settingstable'>
+			<td class='label'><label id="deleteform" for="confirm">#{deleteform}:</label></td>    
+			<td>
 			<input type='hidden' name='confirmnumber' value="#{confirm}" />
-			<input size='30' type='text' name='confirm' value="#{userconfirm}" />
+			<input size='30' type='text' aria-labelledby='deleteform'  id ='confirm' name='confirm' value="#{userconfirm}" />
 			<input type='submit' value="#{deletestr}" />
-		</div>
+			</td>
+		</table>
 	</form>
 }
 

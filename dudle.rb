@@ -53,7 +53,7 @@ class Dudle
 		$is_poll
 	end
 	def tabs_to_html(active_tab)
-		ret = "<div id='tabs'><ul id='tablist'>"
+		ret = "<div id='tabs' role='navigation'><ul id='tablist'>"
 		@tabs.each{|tab,file|
 			case file
 			when _(active_tab)
@@ -113,6 +113,13 @@ class Dudle
 		"<div id='breadcrumbs'><ul><li class='breadcrumb'>#{crumbs.join("</li><li class='breadcrumb'>")}</li></ul></div>"
 	end
 
+	def polltypespan
+		if is_poll?
+			ret = "<div tabindex='0'><span id='polltypespan' class='visually-hidden'>#{CGI.escapeHTML(@polltype)}</span></div>"
+		return ret
+		end
+	end
+
 	def initialize(params = {:revision => nil, :title => nil, :hide_lang_chooser => nil, :relative_dir => "", :load_extensions => true})
 		@requested_revision = params[:revision]
 		@hide_lang_chooser = params[:hide_lang_chooser]
@@ -128,7 +135,12 @@ class Dudle
 			@table = YAML::load(VCS.cat(self.revision, "data.yaml"))
 			@urlsuffix = File.basename(File.expand_path("."))
 			@title = @table.name
-
+			
+			if @table.head.to_s.include? "TimePollHead"
+				@polltype = _('This is a Event-scheduling poll.')
+			else @table.head.to_s.include? "PollHead"
+				@polltype = _('This is a Normal poll.')
+			end
 
 			configfiles = @configtabs.collect{|name,file| file}
 			@is_config = configfiles.include?(@tab)
@@ -140,7 +152,7 @@ class Dudle
 		else
 			@basedir = "."
 			inittabs
-			@title = params[:title] || "DuD-Poll"
+			@title = params[:title] || "DuD-Poll - #{@tabtitle}"
 			@html = HTML.new(@title,params[:relative_dir])
 		end
 
@@ -167,6 +179,7 @@ class Dudle
 		else
 			css = @css
 		end
+		@html.add_css("#{@basedir}/accessibility.css")
 		css.each{|href|
 			@html.add_css("#{@basedir}/#{href}",href.scan(/([^\/]*)\.css/).flatten[0] ,href == @user_css)
 		}
@@ -180,8 +193,10 @@ HEAD
 #{breadcrumbs}
 <div id='main'>
 #{tabs_to_html(@tab)}
-<div id='content'>
-	<h1 id='polltitle'>#{CGI.escapeHTML(@title)}</h1>
+<div id='content' role='content'>
+	<h1 id='polltitle'>#{CGI.escapeHTML(@title)}
+	</h1>
+	#{polltypespan}
 HEAD
 
 
